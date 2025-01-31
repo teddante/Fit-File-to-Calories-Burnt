@@ -1,5 +1,12 @@
+import json
+
 from fitparse import FitFile
 from datetime import datetime
+
+def load_config(config_file='config.json'):
+    with open(config_file, 'r') as f:
+        return json.load(f)
+
 
 # Function to estimate calories burned during an interval,
 # using the Keytel et al. formula for men.
@@ -35,6 +42,11 @@ for record in fitfile.get_messages('record'):
 heart_rate_data.sort(key=lambda x: x[0])
 
 # Personal parameters (change these as appropriate).
+config = load_config()
+weight = config['weight_kg']
+age = config['age_years']
+fitfile = FitFile(config['fit_file_path'])
+
 weight = 70  # in kilograms
 age = 30     # in years
 
