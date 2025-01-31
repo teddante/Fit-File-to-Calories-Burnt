@@ -5,7 +5,7 @@ A tool to estimate calories burned from fitness files.
 ## Installation
 
 - Install dependencies:
-  npm install or pip install fitparse
+  pip install fitparse
 
 ## Dependencies
 
@@ -13,14 +13,18 @@ A tool to estimate calories burned from fitness files.
 
 ## Usage
 
-Run the script with:
+Run the main script with:
   python file_to_calories.py
+
+You can also use:
+  python cardio_calculator.py
 
 ## Configuration
 
-The following configurable values are available:
+The following configurable values are available via config.json:
 
-- `WEIGHT_KG`: User's weight in kilograms
-- `AGE_YEARS`: User's age in years
+- `weight_kg`: User's weight in kilograms
+- `age_years`: User's age in years
+- `gender`: User's gender ('male' or 'female')
 
-These values can be modified via config.json.
+Adjust these values as needed.
