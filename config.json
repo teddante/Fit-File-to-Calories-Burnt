@@ -1,4 +1,6 @@
 {
     "weight_kg": 85,
-    "age_years": 25
-}
+    "age_years": 25,
+    "gender": "male"
+  }
+  

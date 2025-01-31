@@ -10,28 +10,39 @@ def load_config(config_file='config.json'):
     Expected keys:
       - weight_kg: your weight in kilograms (e.g., 70)
       - age_years: your age in years (e.g., 30)
+      - gender: 'male' or 'female' (defaults to 'male' if not specified)
     """
     with open(config_file, 'r') as f:
         return json.load(f)
 
-def calories_burned(hr, duration_minutes, weight, age):
+def calories_burned(hr, duration_minutes, weight, age, gender='male'):
     """
-    Estimate the calories burned during an interval using the Keytel et al. formula for men.
+    Estimate the calories burned during an interval using the Keytel et al. formulas.
+    This function supports formulas for both men and women.
     
     Parameters:
       - hr: heart rate in beats per minute.
       - duration_minutes: duration of the interval in minutes.
       - weight: weight in kilograms.
       - age: age in years.
+      - gender: 'male' or 'female'.
       
     Returns:
       - Estimated calories burned during the interval.
+      
+    Formulas:
+      For men:
+        kcal/min = (-55.0969 + (0.6309 * hr) + (0.1988 * weight) + (0.2017 * age)) / 4.184
+      For women:
+        kcal/min = (-20.4022 + (0.4472 * hr) - (0.1263 * weight) + (0.074 * age)) / 4.184
     """
-    # Calories per minute (kcal/min) computed from the formula.
-    cpm = (-55.0969 + (0.6309 * hr) + (0.1988 * weight) + (0.2017 * age)) / 4.184
+    if gender.lower() == 'female':
+        cpm = (-20.4022 + (0.4472 * hr) - (0.1263 * weight) + (0.074 * age)) / 4.184
+    else:  # default to male formula
+        cpm = (-55.0969 + (0.6309 * hr) + (0.1988 * weight) + (0.2017 * age)) / 4.184
     return cpm * duration_minutes
 
-def process_fit_file(file_path, weight, age):
+def process_fit_file(file_path, weight, age, gender):
     """
     Process a single FIT file to compute the total calories burned.
     
@@ -39,6 +50,7 @@ def process_fit_file(file_path, weight, age):
       - file_path: path to the FIT file.
       - weight: weight in kilograms.
       - age: age in years.
+      - gender: 'male' or 'female'.
       
     Returns:
       - Total estimated calories burned.
@@ -81,7 +93,7 @@ def process_fit_file(file_path, weight, age):
         avg_hr = (prev_hr + curr_hr) / 2.0
         
         # Estimate the calories burned during this interval.
-        total_calories += calories_burned(avg_hr, delta_minutes, weight, age)
+        total_calories += calories_burned(avg_hr, delta_minutes, weight, age, gender)
         
     return total_calories
 
@@ -89,7 +101,8 @@ def main():
     # Load configuration from file.
     config = load_config()
     weight = config.get('weight_kg', 70)       # Default to 70 kg if not specified.
-    age = config.get('age_years', 30)            # Default to 30 years if not specified.
+    age = config.get('age_years', 30)          # Default to 30 years if not specified.
+    gender = config.get('gender', 'male')      # Default to 'male' if not specified.
     
     # Define the directory containing the FIT files: <repo_directory>/fitfiles
     repo_dir = os.path.dirname(os.path.abspath(__file__))
@@ -105,7 +118,7 @@ def main():
     # Process each file and print its estimated calorie burn.
     for file_path in fit_files:
         try:
-            total_calories = process_fit_file(file_path, weight, age)
+            total_calories = process_fit_file(file_path, weight, age, gender)
             print(f"File: {os.path.basename(file_path)} - Total calories burned (estimated): {total_calories:.2f} kcal")
         except Exception as e:
             print(f"Error processing file {file_path}: {e}")
