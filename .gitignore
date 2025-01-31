@@ -169,3 +169,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Ignore all files in the fitfiles directory...
+/fitfiles/*
+
+# ...except for the .gitignore file within fitfiles (to keep the folder tracked)
+!fitfiles/.gitignore
