@@ -31,7 +31,7 @@ def load_config(config_file_path=None) -> Dict[str, Any]:
     if config_file_path is None:
         # Construct the path relative to the project root
         current_dir = os.path.dirname(__file__)
-        project_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
+        project_root = os.path.abspath(os.path.join(current_dir, '..'))
         config_file_path = os.path.join(project_root, 'config', 'config.json')
 
     with open(config_file_path, 'r') as f:

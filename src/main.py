@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 # Determine the project root directory dynamically
 # This assumes the script is run from within the project structure
 # src/main.py -> src/ -> project_root/
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 # Custom exceptions for specific error scenarios
 class FitFileError(Exception):
