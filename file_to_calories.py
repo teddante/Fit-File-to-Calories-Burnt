@@ -1,5 +1,6 @@
 import os
 import glob
+import json
 from fitparse import FitFile
 from datetime import datetime
 import logging
