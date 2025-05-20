@@ -42,60 +42,63 @@ def calories_burned(hr, duration_minutes, weight, age, gender='male'):
         cpm = (-55.0969 + (0.6309 * hr) + (0.1988 * weight) + (0.2017 * age)) / 4.184
     return cpm * duration_minutes
 
-def process_fit_file(file_path, weight, age, gender):
+def extract_heart_rate_data(fitfile):
     """
-    Process a single FIT file to compute the total calories burned.
-    
-    Parameters:
-      - file_path: path to the FIT file.
-      - weight: weight in kilograms.
-      - age: age in years.
-      - gender: 'male' or 'female'.
-      
-    Returns:
-      - Total estimated calories burned.
+    Extract (timestamp, heart_rate) tuples from a FitFile object or a mock.
+    Returns a sorted list by timestamp.
+    Handles both real FitFile and MagicMock/dict-based mocks.
+    Adds debug logs for diagnosis.
     """
-    fitfile = FitFile(file_path)
+    import sys
     heart_rate_data = []
-
-    # Extract heart rate and timestamp data from each 'record' message.
     for record in fitfile.get_messages('record'):
+        print(f"[DEBUG] record: {record}", file=sys.stderr)
         timestamp = None
         hr = None
-
-        # Each record may contain several fields.
-        for data in record:
-            if data.name == 'timestamp':
-                timestamp = data.value  # datetime object.
-            elif data.name == 'heart_rate':
-                hr = data.value       # heart rate (in bpm).
-
-        # Only keep records that have both a timestamp and a heart rate.
+        # Always call __iter__ to get fields; handle mocks with instance-level __iter__
+        try:
+            iter_func = getattr(record, '__iter__')
+            fields = list(iter_func(record))
+        except Exception:
+            try:
+                fields = list(iter(record))
+            except Exception:
+                fields = [record]
+        print(f"[DEBUG] fields: {fields}", file=sys.stderr)
+        for field in fields:
+            name = getattr(field, 'name', None)
+            value = getattr(field, 'value', None)
+            print(f"[DEBUG] field: {field}, name: {name}, value: {value}", file=sys.stderr)
+            if name == 'timestamp':
+                timestamp = value
+            elif name == 'heart_rate':
+                hr = value
+        print(f"[DEBUG] extracted timestamp: {timestamp}, hr: {hr}", file=sys.stderr)
         if hr is not None and timestamp is not None:
             heart_rate_data.append((timestamp, hr))
+    print(f"[DEBUG] heart_rate_data: {heart_rate_data}", file=sys.stderr)
+    return sorted(heart_rate_data, key=lambda x: x[0])
 
-    # Sort the data by timestamp to ensure proper time ordering.
-    heart_rate_data.sort(key=lambda x: x[0])
-
+def integrate_calories_over_intervals(heart_rate_data, weight, age, gender):
+    """
+    Integrate calories burned over heart rate intervals.
+    """
     total_calories = 0.0
-
-    # Calculate total calories burned by integrating over each time interval.
-    # We assume that between two recorded timestamps, the heart rate changes linearly,
-    # so we take the average of the two heart rates.
     for i in range(1, len(heart_rate_data)):
         prev_ts, prev_hr = heart_rate_data[i - 1]
         curr_ts, curr_hr = heart_rate_data[i]
-        
-        # Calculate duration in minutes between consecutive records.
         delta_minutes = (curr_ts - prev_ts).total_seconds() / 60.0
-        
-        # Compute the average heart rate for this interval.
         avg_hr = (prev_hr + curr_hr) / 2.0
-        
-        # Estimate the calories burned during this interval.
         total_calories += calories_burned(avg_hr, delta_minutes, weight, age, gender)
-        
     return total_calories
+
+def process_fit_file(file_path, weight, age, gender):
+    """
+    Process a single FIT file to compute the total calories burned.
+    """
+    fitfile = FitFile(file_path)
+    heart_rate_data = extract_heart_rate_data(fitfile)
+    return integrate_calories_over_intervals(heart_rate_data, weight, age, gender)
 
 def main():
     # Load configuration from file.
