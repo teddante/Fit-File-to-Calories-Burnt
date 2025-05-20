@@ -6,15 +6,15 @@ import logging
 # Patch logger before importing the modules
 @pytest.fixture(autouse=True)
 def mock_logger():
-    with patch('logger.get_logger') as mock_get_logger:
+    with patch('src.core.logger.get_logger') as mock_get_logger:
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
         yield mock_logger
 
 # Import from utils module
-from utils import calories_burned, load_config
+from src.core.utils import calories_burned, load_config
 
-from file_to_calories import (
+from src.main import (
     extract_heart_rate_data,
     integrate_calories_over_intervals,
     process_fit_file,
@@ -61,7 +61,7 @@ def test_integrate_calories_over_intervals():
     total = integrate_calories_over_intervals(hr_data, 70, 30, 'male')
     assert total > 0
 
-@patch('file_to_calories.FitFile')
+@patch('src.main.FitFile')
 @patch('os.path.exists')
 @patch('os.path.isfile')
 @patch('os.access')

@@ -5,11 +5,16 @@ from fitparse import FitFile
 from datetime import datetime, timedelta
 import logging
 from typing import List, Tuple, Optional, Dict, Any
-from logger import get_logger
-from utils import load_config, calories_burned, calculate_karvonen_zones
+from src.core.logger import get_logger
+from src.core.utils import load_config, calories_burned, calculate_karvonen_zones
 
 # Get logger for this module
 logger = get_logger(__name__)
+
+# Determine the project root directory dynamically
+# This assumes the script is run from within the project structure
+# src/main.py -> src/ -> project_root/
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 # Custom exceptions for specific error scenarios
 class FitFileError(Exception):
@@ -250,7 +255,7 @@ def load_user_config() -> Dict[str, Any]:
         ConfigError: If the configuration file is missing, invalid, or contains invalid values
     """
     try:
-        config = load_config()
+        config = load_config(os.path.join(project_root, 'config', 'config.json'))
     except FileNotFoundError as e:
         logger.error("Configuration file not found")
         raise ConfigError("Configuration file not found") from e
@@ -478,8 +483,7 @@ def process_fit_files_option():
         
         # Define the directory containing the FIT files: <repo_directory>/fitfiles
         try:
-            repo_dir = os.path.dirname(os.path.abspath(__file__))
-            fit_directory = os.path.join(repo_dir, 'fitfiles')
+            fit_directory = os.path.join(project_root, 'data', 'fitfiles')
             
             if not os.path.exists(fit_directory):
                 logger.warning(f"Fitfiles directory not found: {fit_directory}")
@@ -560,8 +564,7 @@ def clean_up_fit_file_names_option():
     """
     print("\n--- Cleaning up FIT file names ---")
     try:
-        repo_dir = os.path.dirname(os.path.abspath(__file__))
-        fit_directory = os.path.join(repo_dir, 'fitfiles')
+        fit_directory = os.path.join(project_root, 'data', 'fitfiles')
         
         if not os.path.exists(fit_directory):
             logger.warning(f"Fitfiles directory not found: {fit_directory}")
@@ -679,8 +682,7 @@ def process_fit_files_option():
         
         # Define the directory containing the FIT files: <repo_directory>/fitfiles
         try:
-            repo_dir = os.path.dirname(os.path.abspath(__file__))
-            fit_directory = os.path.join(repo_dir, 'fitfiles')
+            fit_directory = os.path.join(project_root, 'data', 'fitfiles')
             
             if not os.path.exists(fit_directory):
                 logger.warning(f"Fitfiles directory not found: {fit_directory}")

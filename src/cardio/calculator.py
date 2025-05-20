@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, Union
-from logger import get_logger
-from utils import (
+from src.core.logger import get_logger
+from src.core.utils import (
     calculate_kcal_per_min,
     calculate_heart_rate,
     calculate_weight,

@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from typing import Dict, Any, Union
 
 # Constants for Keytel formula
@@ -19,7 +20,7 @@ FEMALE_CONSTANTS = {
     'conversion': 4.184  # Convert to kcal
 }
 
-def load_config(config_file='config.json') -> Dict[str, Any]:
+def load_config(config_file_path=None) -> Dict[str, Any]:
     """
     Loads configuration parameters from a JSON file.
     Expected keys:
@@ -27,7 +28,13 @@ def load_config(config_file='config.json') -> Dict[str, Any]:
       - age_years: your age in years (e.g., 30)
       - gender: 'male' or 'female' (defaults to 'male' if not specified)
     """
-    with open(config_file, 'r') as f:
+    if config_file_path is None:
+        # Construct the path relative to the project root
+        current_dir = os.path.dirname(__file__)
+        project_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
+        config_file_path = os.path.join(project_root, 'config', 'config.json')
+
+    with open(config_file_path, 'r') as f:
         return json.load(f)
 
 def calculate_kcal_per_min(hr: float, weight: float, age: float, gender: str = 'male') -> float:

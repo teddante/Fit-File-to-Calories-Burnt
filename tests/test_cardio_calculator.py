@@ -4,13 +4,13 @@ from unittest.mock import MagicMock, patch
 # Patch logger before importing the modules
 @pytest.fixture(autouse=True)
 def mock_logger():
-    with patch('logger.get_logger') as mock_get_logger:
+    with patch('src.core.logger.get_logger') as mock_get_logger:
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
         yield mock_logger
 
 # Import directly from utils module
-from utils import (
+from src.core.utils import (
     calculate_kcal_per_min,
     calculate_heart_rate,
     calculate_weight,
@@ -18,7 +18,7 @@ from utils import (
 )
 
 # Import from cardio_calculator for error handling tests
-from cardio_calculator import (
+from src.cardio.calculator import (
     validate_gender,
     validate_calculation_inputs,
     calculate_with_error_handling,
