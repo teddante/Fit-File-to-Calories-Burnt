@@ -1,51 +1,13 @@
-import json
 import os
 import glob
 from fitparse import FitFile
 from datetime import datetime
 import logging
 from logger import get_logger
+from utils import load_config, calories_burned
 
 # Get logger for this module
 logger = get_logger(__name__)
-
-def load_config(config_file='config.json'):
-    """
-    Loads configuration parameters from a JSON file.
-    Expected keys:
-      - weight_kg: your weight in kilograms (e.g., 70)
-      - age_years: your age in years (e.g., 30)
-      - gender: 'male' or 'female' (defaults to 'male' if not specified)
-    """
-    with open(config_file, 'r') as f:
-        return json.load(f)
-
-def calories_burned(hr, duration_minutes, weight, age, gender='male'):
-    """
-    Estimate the calories burned during an interval using the Keytel et al. formulas.
-    This function supports formulas for both men and women.
-    
-    Parameters:
-      - hr: heart rate in beats per minute.
-      - duration_minutes: duration of the interval in minutes.
-      - weight: weight in kilograms.
-      - age: age in years.
-      - gender: 'male' or 'female'.
-      
-    Returns:
-      - Estimated calories burned during the interval.
-      
-    Formulas:
-      For men:
-        kcal/min = (-55.0969 + (0.6309 * hr) + (0.1988 * weight) + (0.2017 * age)) / 4.184
-      For women:
-        kcal/min = (-20.4022 + (0.4472 * hr) - (0.1263 * weight) + (0.074 * age)) / 4.184
-    """
-    if gender.lower() == 'female':
-        cpm = (-20.4022 + (0.4472 * hr) - (0.1263 * weight) + (0.074 * age)) / 4.184
-    else:  # default to male formula
-        cpm = (-55.0969 + (0.6309 * hr) + (0.1988 * weight) + (0.2017 * age)) / 4.184
-    return cpm * duration_minutes
 
 def extract_heart_rate_data(fitfile):
     """

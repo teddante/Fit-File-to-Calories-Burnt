@@ -9,7 +9,8 @@ def mock_logger():
         mock_get_logger.return_value = mock_logger
         yield mock_logger
 
-from cardio_calculator import (
+# Import directly from utils module
+from utils import (
     calculate_kcal_per_min,
     calculate_heart_rate,
     calculate_weight,
@@ -18,6 +19,14 @@ from cardio_calculator import (
 
 def test_calculate_kcal_per_min_typical():
     assert pytest.approx(calculate_kcal_per_min(150, 70, 30), 0.01) == 14.22
+
+def test_calculate_kcal_per_min_female():
+    # Test with female gender
+    female_kcal = calculate_kcal_per_min(150, 70, 30, 'female')
+    assert isinstance(female_kcal, float)
+    # Female formula should give different result than male formula
+    male_kcal = calculate_kcal_per_min(150, 70, 30, 'male')
+    assert female_kcal != male_kcal
 
 def test_calculate_kcal_per_min_zero():
     assert pytest.approx(calculate_kcal_per_min(0, 0, 0), 0.01) == -13.17

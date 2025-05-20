@@ -11,12 +11,13 @@ def mock_logger():
         mock_get_logger.return_value = mock_logger
         yield mock_logger
 
+# Import from utils module
+from utils import calories_burned, load_config
+
 from file_to_calories import (
-    calories_burned,
     extract_heart_rate_data,
     integrate_calories_over_intervals,
     process_fit_file,
-    load_config,
 )
 
 def test_calories_burned_male_typical():
