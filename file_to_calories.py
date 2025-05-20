@@ -3,106 +3,400 @@ import glob
 from fitparse import FitFile
 from datetime import datetime
 import logging
+from typing import List, Tuple, Optional, Dict, Any
 from logger import get_logger
 from utils import load_config, calories_burned
 
 # Get logger for this module
 logger = get_logger(__name__)
 
-def extract_heart_rate_data(fitfile):
+# Custom exceptions for specific error scenarios
+class FitFileError(Exception):
+    """Base exception for FIT file processing errors."""
+    pass
+
+class InvalidFitFileError(FitFileError):
+    """Exception raised when a FIT file is invalid or corrupted."""
+    pass
+
+class MissingDataError(FitFileError):
+    """Exception raised when required data is missing from a FIT file."""
+    pass
+
+class ConfigError(Exception):
+    """Exception raised for configuration-related errors."""
+    pass
+
+def extract_heart_rate_data(fitfile) -> List[Tuple[datetime, int]]:
     """
     Extract (timestamp, heart_rate) tuples from a FitFile object or a mock.
-    Returns a sorted list by timestamp.
-    Handles both real FitFile and MagicMock/dict-based mocks.
-    Adds debug logs for diagnosis.
+    
+    Args:
+        fitfile: A FitFile object or mock containing heart rate data
+        
+    Returns:
+        A list of (timestamp, heart_rate) tuples sorted by timestamp
+        
+    Raises:
+        TypeError: If fitfile is not a valid FitFile object or mock
+        AttributeError: If required methods are missing from fitfile
+        MissingDataError: If no valid heart rate data is found
+        ValueError: If data values are invalid
     """
+    if fitfile is None:
+        raise TypeError("FitFile object cannot be None")
+    
     heart_rate_data = []
-    for record in fitfile.get_messages('record'):
+    
+    try:
+        records = fitfile.get_messages('record')
+    except AttributeError as e:
+        logger.error(f"Invalid FitFile object: {e}")
+        raise TypeError(f"Invalid FitFile object: {e}") from e
+    except Exception as e:
+        logger.error(f"Error accessing FIT file records: {e}")
+        raise FitFileError(f"Error accessing FIT file records: {e}") from e
+    
+    for record in records:
         logger.debug(f"record: {record}")
         timestamp = None
         hr = None
+        
         # Always call __iter__ to get fields; handle mocks with instance-level __iter__
         try:
             iter_func = getattr(record, '__iter__')
             fields = list(iter_func(record))
-        except Exception:
+        except (AttributeError, TypeError) as e:
+            logger.debug(f"Could not use instance __iter__: {e}")
             try:
                 fields = list(iter(record))
-            except Exception:
+            except (TypeError, ValueError) as e:
+                logger.debug(f"Could not iterate record: {e}")
                 fields = [record]
+        
         logger.debug(f"fields: {fields}")
+        
         for field in fields:
-            name = getattr(field, 'name', None)
-            value = getattr(field, 'value', None)
-            logger.debug(f"field: {field}, name: {name}, value: {value}")
-            if name == 'timestamp':
-                timestamp = value
-            elif name == 'heart_rate':
-                hr = value
+            try:
+                name = getattr(field, 'name', None)
+                value = getattr(field, 'value', None)
+                logger.debug(f"field: {field}, name: {name}, value: {value}")
+                
+                if name == 'timestamp':
+                    if not isinstance(value, datetime):
+                        logger.warning(f"Invalid timestamp format: {value}")
+                        continue
+                    timestamp = value
+                elif name == 'heart_rate':
+                    if not isinstance(value, (int, float)) or value <= 0:
+                        logger.warning(f"Invalid heart rate value: {value}")
+                        continue
+                    hr = value
+            except Exception as e:
+                logger.warning(f"Error processing field {field}: {e}")
+                continue
+                
         logger.debug(f"extracted timestamp: {timestamp}, hr: {hr}")
+        
         if hr is not None and timestamp is not None:
             heart_rate_data.append((timestamp, hr))
+    
     logger.debug(f"heart_rate_data: {heart_rate_data}")
+    
+    if not heart_rate_data:
+        logger.error("No valid heart rate data found in FIT file")
+        raise MissingDataError("No valid heart rate data found in FIT file")
+        
     return sorted(heart_rate_data, key=lambda x: x[0])
 
-def integrate_calories_over_intervals(heart_rate_data, weight, age, gender):
+def integrate_calories_over_intervals(heart_rate_data: List[Tuple[datetime, int]],
+                                     weight: float,
+                                     age: float,
+                                     gender: str) -> float:
     """
     Integrate calories burned over heart rate intervals.
+    
+    Args:
+        heart_rate_data: List of (timestamp, heart_rate) tuples sorted by timestamp
+        weight: User's weight in kg
+        age: User's age in years
+        gender: User's gender ('male' or 'female')
+        
+    Returns:
+        Total calories burned
+        
+    Raises:
+        ValueError: If input parameters are invalid
+        IndexError: If heart_rate_data has fewer than 2 entries
+        TypeError: If input data types are incorrect
     """
+    # Validate input parameters
+    if not heart_rate_data:
+        raise ValueError("Heart rate data cannot be empty")
+    
+    if len(heart_rate_data) < 2:
+        raise ValueError("At least two heart rate data points are required")
+        
+    if not isinstance(weight, (int, float)) or weight <= 0:
+        raise ValueError(f"Weight must be a positive number, got {weight}")
+        
+    if not isinstance(age, (int, float)) or age <= 0:
+        raise ValueError(f"Age must be a positive number, got {age}")
+        
+    if not isinstance(gender, str) or gender.lower() not in ['male', 'female']:
+        raise ValueError(f"Gender must be 'male' or 'female', got {gender}")
+    
     total_calories = 0.0
-    for i in range(1, len(heart_rate_data)):
-        prev_ts, prev_hr = heart_rate_data[i - 1]
-        curr_ts, curr_hr = heart_rate_data[i]
-        delta_minutes = (curr_ts - prev_ts).total_seconds() / 60.0
-        avg_hr = (prev_hr + curr_hr) / 2.0
-        total_calories += calories_burned(avg_hr, delta_minutes, weight, age, gender)
+    
+    try:
+        for i in range(1, len(heart_rate_data)):
+            prev_ts, prev_hr = heart_rate_data[i - 1]
+            curr_ts, curr_hr = heart_rate_data[i]
+            
+            # Validate timestamps
+            if not isinstance(prev_ts, datetime) or not isinstance(curr_ts, datetime):
+                raise TypeError("Timestamps must be datetime objects")
+                
+            # Check for negative time intervals
+            if curr_ts <= prev_ts:
+                logger.warning(f"Invalid time interval: {prev_ts} to {curr_ts}. Skipping.")
+                continue
+                
+            delta_minutes = (curr_ts - prev_ts).total_seconds() / 60.0
+            
+            # Skip very short intervals
+            if delta_minutes < 0.01:  # Less than 1 second
+                logger.debug(f"Skipping very short interval: {delta_minutes} minutes")
+                continue
+                
+            avg_hr = (prev_hr + curr_hr) / 2.0
+            
+            # Skip unrealistic heart rates
+            if avg_hr <= 0 or avg_hr > 250:
+                logger.warning(f"Unrealistic heart rate: {avg_hr}. Skipping.")
+                continue
+                
+            interval_calories = calories_burned(avg_hr, delta_minutes, weight, age, gender)
+            total_calories += interval_calories
+            logger.debug(f"Interval: {delta_minutes:.2f} min, HR: {avg_hr:.1f}, Calories: {interval_calories:.2f}")
+            
+    except (TypeError, ValueError) as e:
+        logger.error(f"Error calculating calories: {e}")
+        raise
+        
     return total_calories
 
-def process_fit_file(file_path, weight, age, gender):
+def process_fit_file(file_path: str, weight: float, age: float, gender: str) -> float:
     """
     Process a single FIT file to compute the total calories burned.
+    
+    Args:
+        file_path: Path to the FIT file
+        weight: User's weight in kg
+        age: User's age in years
+        gender: User's gender ('male' or 'female')
+        
+    Returns:
+        Total calories burned
+        
+    Raises:
+        FileNotFoundError: If the file does not exist
+        PermissionError: If the file cannot be accessed due to permissions
+        InvalidFitFileError: If the file is not a valid FIT file
+        MissingDataError: If required data is missing from the file
+        ValueError: If input parameters are invalid
     """
-    fitfile = FitFile(file_path)
-    heart_rate_data = extract_heart_rate_data(fitfile)
-    return integrate_calories_over_intervals(heart_rate_data, weight, age, gender)
+    # Validate input parameters
+    if not isinstance(file_path, str) or not file_path:
+        raise ValueError("File path must be a non-empty string")
+        
+    if not os.path.exists(file_path):
+        logger.error(f"File not found: {file_path}")
+        raise FileNotFoundError(f"File not found: {file_path}")
+        
+    if not os.path.isfile(file_path):
+        logger.error(f"Not a file: {file_path}")
+        raise ValueError(f"Not a file: {file_path}")
+        
+    if not os.access(file_path, os.R_OK):
+        logger.error(f"Permission denied: {file_path}")
+        raise PermissionError(f"Permission denied: {file_path}")
+    
+    try:
+        fitfile = FitFile(file_path)
+    except Exception as e:
+        logger.error(f"Error opening FIT file {file_path}: {e}")
+        raise InvalidFitFileError(f"Error opening FIT file: {e}") from e
+    
+    try:
+        heart_rate_data = extract_heart_rate_data(fitfile)
+        return integrate_calories_over_intervals(heart_rate_data, weight, age, gender)
+    except MissingDataError:
+        logger.error(f"No heart rate data found in {file_path}")
+        raise
+    except Exception as e:
+        logger.error(f"Error processing FIT file {file_path}: {e}")
+        raise FitFileError(f"Error processing FIT file: {e}") from e
+
+def load_user_config() -> Dict[str, Any]:
+    """
+    Load and validate user configuration from config file.
+    
+    Returns:
+        Dictionary with validated configuration values
+        
+    Raises:
+        ConfigError: If the configuration file is missing, invalid, or contains invalid values
+    """
+    try:
+        config = load_config()
+    except FileNotFoundError as e:
+        logger.error("Configuration file not found")
+        raise ConfigError("Configuration file not found") from e
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in configuration file: {e}")
+        raise ConfigError(f"Invalid JSON in configuration file: {e}") from e
+    except Exception as e:
+        logger.error(f"Error loading configuration: {e}")
+        raise ConfigError(f"Error loading configuration: {e}") from e
+    
+    # Extract and validate configuration values
+    try:
+        weight = config.get('weight_kg', 70)
+        if not isinstance(weight, (int, float)) or weight <= 0:
+            logger.warning(f"Invalid weight in config: {weight}. Using default 70kg.")
+            weight = 70
+            
+        age = config.get('age_years', 30)
+        if not isinstance(age, (int, float)) or age <= 0:
+            logger.warning(f"Invalid age in config: {age}. Using default 30 years.")
+            age = 30
+            
+        gender = config.get('gender', 'male')
+        if not isinstance(gender, str) or gender.lower() not in ['male', 'female']:
+            logger.warning(f"Invalid gender in config: {gender}. Using default 'male'.")
+            gender = 'male'
+            
+        return {
+            'weight_kg': weight,
+            'age_years': age,
+            'gender': gender.lower()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error validating configuration: {e}")
+        raise ConfigError(f"Error validating configuration: {e}") from e
 
 def main():
-    # Load configuration from file.
-    config = load_config()
-    weight = config.get('weight_kg', 70)       # Default to 70 kg if not specified.
-    age = config.get('age_years', 30)          # Default to 30 years if not specified.
-    gender = config.get('gender', 'male')      # Default to 'male' if not specified.
+    """
+    Main function to process FIT files and calculate calories burned.
     
-    logger.info(f"Using configuration: weight={weight}kg, age={age}yrs, gender={gender}")
-    
-    # Define the directory containing the FIT files: <repo_directory>/fitfiles
-    repo_dir = os.path.dirname(os.path.abspath(__file__))
-    fit_directory = os.path.join(repo_dir, 'fitfiles')
-    
-    # Find all .fit files in the 'fitfiles' folder.
-    fit_files = glob.glob(os.path.join(fit_directory, '*.fit'))
-    
-    if not fit_files:
-        logger.warning(f"No .fit files found in directory: {fit_directory}")
-        print("No .fit files found in directory:", fit_directory)
-        return
-
-    logger.info(f"Found {len(fit_files)} .fit files to process")
-    
-    # Process each file and print its estimated calorie burn.
-    for file_path in fit_files:
+    Handles errors gracefully and provides informative error messages.
+    """
+    try:
+        # Load configuration from file
         try:
-            logger.info(f"Processing file: {os.path.basename(file_path)}")
-            total_calories = process_fit_file(file_path, weight, age, gender)
-            print(f"File: {os.path.basename(file_path)} - Total calories burned (estimated): {total_calories:.2f} kcal")
-            logger.info(f"Calories burned: {total_calories:.2f} kcal")
+            config = load_user_config()
+            weight = config['weight_kg']
+            age = config['age_years']
+            gender = config['gender']
+            
+            logger.info(f"Using configuration: weight={weight}kg, age={age}yrs, gender={gender}")
+        except ConfigError as e:
+            logger.error(f"Configuration error: {e}")
+            print(f"Configuration error: {e}")
+            print("Using default values: weight=70kg, age=30yrs, gender=male")
+            weight = 70
+            age = 30
+            gender = 'male'
+        
+        # Define the directory containing the FIT files: <repo_directory>/fitfiles
+        try:
+            repo_dir = os.path.dirname(os.path.abspath(__file__))
+            fit_directory = os.path.join(repo_dir, 'fitfiles')
+            
+            if not os.path.exists(fit_directory):
+                logger.warning(f"Fitfiles directory not found: {fit_directory}")
+                print(f"Fitfiles directory not found: {fit_directory}")
+                try:
+                    os.makedirs(fit_directory)
+                    logger.info(f"Created fitfiles directory: {fit_directory}")
+                    print(f"Created fitfiles directory: {fit_directory}")
+                except Exception as e:
+                    logger.error(f"Failed to create fitfiles directory: {e}")
+                    print(f"Failed to create fitfiles directory: {e}")
+                    return
+            
+            # Find all .fit files in the 'fitfiles' folder
+            fit_files = glob.glob(os.path.join(fit_directory, '*.fit'))
+            
+            if not fit_files:
+                logger.warning(f"No .fit files found in directory: {fit_directory}")
+                print("No .fit files found in directory:", fit_directory)
+                return
+    
+            logger.info(f"Found {len(fit_files)} .fit files to process")
+            
+            # Process each file and print its estimated calorie burn
+            processed_count = 0
+            error_count = 0
+            
+            for file_path in fit_files:
+                try:
+                    logger.info(f"Processing file: {os.path.basename(file_path)}")
+                    total_calories = process_fit_file(file_path, weight, age, gender)
+                    print(f"File: {os.path.basename(file_path)} - Total calories burned (estimated): {total_calories:.2f} kcal")
+                    logger.info(f"Calories burned: {total_calories:.2f} kcal")
+                    processed_count += 1
+                except FileNotFoundError as e:
+                    error_msg = f"File not found: {os.path.basename(file_path)}"
+                    logger.error(error_msg)
+                    print(error_msg)
+                    error_count += 1
+                except PermissionError as e:
+                    error_msg = f"Permission denied: {os.path.basename(file_path)}"
+                    logger.error(error_msg)
+                    print(error_msg)
+                    error_count += 1
+                except InvalidFitFileError as e:
+                    error_msg = f"Invalid FIT file {os.path.basename(file_path)}: {e}"
+                    logger.error(error_msg)
+                    print(error_msg)
+                    error_count += 1
+                except MissingDataError as e:
+                    error_msg = f"Missing data in {os.path.basename(file_path)}: {e}"
+                    logger.error(error_msg)
+                    print(error_msg)
+                    error_count += 1
+                except Exception as e:
+                    error_msg = f"Error processing file {os.path.basename(file_path)}: {e}"
+                    logger.error(error_msg)
+                    print(error_msg)
+                    error_count += 1
+            
+            logger.info(f"Processing complete. Processed {processed_count} files successfully, {error_count} files with errors.")
+            if processed_count > 0:
+                print(f"\nProcessing complete. Processed {processed_count} files successfully.")
+            if error_count > 0:
+                print(f"Encountered errors in {error_count} files. Check the log for details.")
+                
         except Exception as e:
-            error_msg = f"Error processing file {file_path}: {e}"
-            logger.error(error_msg)
-            print(error_msg)
+            logger.error(f"Error finding or processing FIT files: {e}")
+            print(f"Error finding or processing FIT files: {e}")
+            
+    except Exception as e:
+        logger.critical(f"Unhandled exception in main: {e}")
+        print(f"An unexpected error occurred: {e}")
 
 if __name__ == '__main__':
     # Set logging level to INFO by default
     # To enable debug logging, uncomment the following line:
     # logging.getLogger().setLevel(logging.DEBUG)
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nProgram interrupted by user. Exiting...")
+        logger.info("Program interrupted by user")
+    except Exception as e:
+        logger.critical(f"Unhandled exception: {e}", exc_info=True)
+        print(f"Critical error: {e}")

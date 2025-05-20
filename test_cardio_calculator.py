@@ -17,6 +17,15 @@ from utils import (
     calculate_age,
 )
 
+# Import from cardio_calculator for error handling tests
+from cardio_calculator import (
+    validate_gender,
+    validate_calculation_inputs,
+    calculate_with_error_handling,
+    InputValidationError,
+    CalculationError
+)
+
 def test_calculate_kcal_per_min_typical():
     assert pytest.approx(calculate_kcal_per_min(150, 70, 30), 0.01) == 14.22
 
@@ -51,3 +60,196 @@ def test_negative_values():
     assert isinstance(calculate_heart_rate(-5, -10, -15), float)
     assert isinstance(calculate_weight(-5, -10, -15), float)
     assert isinstance(calculate_age(-5, -10, -15), float)
+
+# New tests for error handling functionality
+
+def test_validate_gender_valid():
+    """Test that validate_gender accepts valid inputs."""
+    assert validate_gender("male") == "male"
+    assert validate_gender("MALE") == "male"
+    assert validate_gender(" female ") == "female"
+
+def test_validate_gender_invalid():
+    """Test that validate_gender rejects invalid inputs."""
+    with pytest.raises(InputValidationError):
+        validate_gender("other")
+    with pytest.raises(InputValidationError):
+        validate_gender("")
+
+def test_validate_calculation_inputs_valid():
+    """Test that validate_calculation_inputs accepts valid inputs."""
+    # Test with all inputs valid
+    result = validate_calculation_inputs(
+        heart_rate=100, 
+        weight=70, 
+        age=30, 
+        kcal_per_min=10, 
+        gender="male"
+    )
+    assert result == {
+        "heart_rate": 100,
+        "weight": 70,
+        "age": 30,
+        "kcal_per_min": 10,
+        "gender": "male"
+    }
+    
+    # Test with some inputs None (which is valid)
+    result = validate_calculation_inputs(
+        heart_rate=100,
+        weight=None,
+        age=30
+    )
+    assert result == {
+        "heart_rate": 100,
+        "age": 30
+    }
+
+def test_validate_calculation_inputs_invalid():
+    """Test that validate_calculation_inputs rejects invalid inputs."""
+    # Test invalid heart rate
+    with pytest.raises(InputValidationError):
+        validate_calculation_inputs(heart_rate=0)
+    with pytest.raises(InputValidationError):
+        validate_calculation_inputs(heart_rate=300)
+        
+    # Test invalid weight
+    with pytest.raises(InputValidationError):
+        validate_calculation_inputs(weight=0)
+    with pytest.raises(InputValidationError):
+        validate_calculation_inputs(weight=600)
+        
+    # Test invalid age
+    with pytest.raises(InputValidationError):
+        validate_calculation_inputs(age=0)
+    with pytest.raises(InputValidationError):
+        validate_calculation_inputs(age=150)
+        
+    # Test invalid kcal_per_min
+    with pytest.raises(InputValidationError):
+        validate_calculation_inputs(kcal_per_min=-1)
+    with pytest.raises(InputValidationError):
+        validate_calculation_inputs(kcal_per_min=150)
+        
+    # Test invalid gender
+    with pytest.raises(InputValidationError):
+        validate_calculation_inputs(gender="other")
+
+def test_calculate_with_error_handling_valid():
+    """Test that calculate_with_error_handling works with valid inputs."""
+    # Test calculating kcal_per_min
+    result = calculate_with_error_handling("kcal_per_min", {
+        "heart_rate": 150,
+        "weight": 70,
+        "age": 30,
+        "gender": "male"
+    })
+    assert pytest.approx(result, 0.01) == 14.22
+    
+    # Test calculating heart_rate
+    result = calculate_with_error_handling("heart_rate", {
+        "kcal_per_min": 14.22,
+        "weight": 70,
+        "age": 30,
+        "gender": "male"
+    })
+    assert pytest.approx(result, 0.01) == 150
+    
+    # Test calculating weight
+    result = calculate_with_error_handling("weight", {
+        "kcal_per_min": 14.22,
+        "heart_rate": 150,
+        "age": 30,
+        "gender": "male"
+    })
+    assert pytest.approx(result, 0.01) == 70
+    
+    # Test calculating age
+    result = calculate_with_error_handling("age", {
+        "kcal_per_min": 14.22,
+        "heart_rate": 150,
+        "weight": 70,
+        "gender": "male"
+    })
+    assert pytest.approx(result, 0.01) == 30
+
+def test_calculate_with_error_handling_missing_inputs():
+    """Test that calculate_with_error_handling raises errors for missing inputs."""
+    # Missing heart_rate for kcal_per_min calculation
+    with pytest.raises(CalculationError) as excinfo:
+        calculate_with_error_handling("kcal_per_min", {
+            "weight": 70,
+            "age": 30,
+            "gender": "male"
+        })
+    assert "Missing required inputs" in str(excinfo.value)
+    
+    # Missing kcal_per_min for heart_rate calculation
+    with pytest.raises(CalculationError) as excinfo:
+        calculate_with_error_handling("heart_rate", {
+            "weight": 70,
+            "age": 30,
+            "gender": "male"
+        })
+    assert "Missing required inputs" in str(excinfo.value)
+    
+    # Missing heart_rate for weight calculation
+    with pytest.raises(CalculationError) as excinfo:
+        calculate_with_error_handling("weight", {
+            "kcal_per_min": 14.22,
+            "age": 30,
+            "gender": "male"
+        })
+    assert "Missing required inputs" in str(excinfo.value)
+    
+    # Missing weight for age calculation
+    with pytest.raises(CalculationError) as excinfo:
+        calculate_with_error_handling("age", {
+            "kcal_per_min": 14.22,
+            "heart_rate": 150,
+            "gender": "male"
+        })
+    assert "Missing required inputs" in str(excinfo.value)
+
+def test_calculate_with_error_handling_unknown_variable():
+    """Test that calculate_with_error_handling raises error for unknown variable."""
+    with pytest.raises(CalculationError) as excinfo:
+        calculate_with_error_handling("unknown", {
+            "heart_rate": 150,
+            "weight": 70,
+            "age": 30,
+            "gender": "male"
+        })
+    assert "Unknown variable" in str(excinfo.value)
+
+def test_calculate_with_error_handling_calculation_error():
+    """Test that calculate_with_error_handling wraps calculation errors."""
+    # Create a scenario that would cause a division by zero
+    with patch('cardio_calculator.calculate_kcal_per_min', side_effect=ZeroDivisionError("Division by zero")):
+        with pytest.raises(CalculationError):
+            calculate_with_error_handling("kcal_per_min", {
+                "heart_rate": 150,
+                "weight": 70,
+                "age": 30,
+                "gender": "male"
+            })
+    
+    # Create a scenario that would cause a value error
+    with patch('cardio_calculator.calculate_kcal_per_min', side_effect=ValueError("Invalid value")):
+        with pytest.raises(CalculationError):
+            calculate_with_error_handling("kcal_per_min", {
+                "heart_rate": 150,
+                "weight": 70,
+                "age": 30,
+                "gender": "male"
+            })
+    
+    # Create a scenario that would cause a generic exception
+    with patch('cardio_calculator.calculate_kcal_per_min', side_effect=Exception("Generic error")):
+        with pytest.raises(CalculationError):
+            calculate_with_error_handling("kcal_per_min", {
+                "heart_rate": 150,
+                "weight": 70,
+                "age": 30,
+                "gender": "male"
+            })
