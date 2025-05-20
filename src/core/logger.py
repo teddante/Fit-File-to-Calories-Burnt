@@ -35,16 +35,6 @@ def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
         logger.setLevel(level)
     
     # Only add handlers if they don't exist yet
-    if not logger.handlers:
-        # Create console handler
-        console_handler = logging.StreamHandler(sys.stderr)
-        
-        # Create formatter
-        formatter = logging.Formatter(DEFAULT_FORMAT)
-        console_handler.setFormatter(formatter)
-        
-        # Add handler to logger
-        logger.addHandler(console_handler)
     
     # Store logger in dictionary
     _loggers[name] = logger
@@ -92,4 +82,3 @@ def initialize_logging(level: int = logging.INFO) -> None:
     root_logger.addHandler(console_handler)
 
 # Initialize logging with INFO level by default
-initialize_logging(logging.INFO)

@@ -647,6 +647,9 @@ def calculate_karvonen_zones_option():
 
 if __name__ == '__main__':
     # Set logging level to INFO by default
+# Initialize logging
+    from src.core.logger import initialize_logging
+    initialize_logging(logging.INFO)
     # To enable debug logging, uncomment the following line:
     # logging.getLogger().setLevel(logging.DEBUG)
     try:
