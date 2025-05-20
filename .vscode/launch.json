@@ -3,7 +3,7 @@
     "configurations": [
         {
             "name": "Python: Run Main Module",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "src.main",
             "cwd": "${workspaceFolder}",
