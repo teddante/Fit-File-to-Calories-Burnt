@@ -14,14 +14,14 @@ def prompt_float(prompt: str) -> float | None:
     """
     Prompt the user for a float value. Returns None if input is blank.
     """
-    value = input(prompt)
-    if value.strip() == "":
-        return None
-    try:
-        return float(value)
-    except ValueError:
-        print("Please enter a valid number or leave blank.")
-        return prompt_float(prompt)
+    while True:
+        value = input(prompt)
+        if value.strip() == "":
+            return None
+        try:
+            return float(value)
+        except ValueError:
+            print("Please enter a valid number or leave blank.")
 
 def main():
     logger.info("Starting cardio calculator")
