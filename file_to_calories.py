@@ -6,7 +6,7 @@ from datetime import datetime
 import logging
 from typing import List, Tuple, Optional, Dict, Any
 from logger import get_logger
-from utils import load_config, calories_burned
+from utils import load_config, calories_burned, calculate_karvonen_zones
 
 # Get logger for this module
 logger = get_logger(__name__)
@@ -288,11 +288,50 @@ def load_user_config() -> Dict[str, Any]:
         logger.error(f"Error validating configuration: {e}")
         raise ConfigError(f"Error validating configuration: {e}") from e
 
+def prompt_int(prompt_message: str) -> Optional[int]:
+    """Prompts the user for an integer input."""
+    while True:
+        try:
+            value = input(prompt_message).strip()
+            if not value:
+                return None
+            return int(value)
+        except ValueError:
+            print("Invalid input. Please enter a whole number.")
+
 def main():
     """
-    Main function to process FIT files and calculate calories burned.
-    
-    Handles errors gracefully and provides informative error messages.
+    Main function to provide calculator options to the user.
+    """
+    try:
+        while True:
+            print("\nSelect a calculator option:")
+            print("1. Calculate Calories from FIT file")
+            print("2. Calculate Karvonen Heart Rate Zones")
+            print("3. Exit")
+
+            choice = input("Enter your choice (1, 2, or 3): ").strip()
+
+            if choice == '1':
+                process_fit_files_option()
+            elif choice == '2':
+                calculate_karvonen_zones_option()
+            elif choice == '3':
+                print("Exiting program.")
+                break
+            else:
+                print("Invalid choice. Please enter 1, 2, or 3.")
+
+    except KeyboardInterrupt:
+        print("\nProgram interrupted by user. Exiting...")
+        logger.info("Program interrupted by user")
+    except Exception as e:
+        logger.critical(f"Unhandled exception: {e}", exc_info=True)
+        print(f"Critical error: {e}")
+
+def process_fit_files_option():
+    """
+    Handles the option to process FIT files and calculate calories burned.
     """
     try:
         # Load configuration from file
@@ -386,8 +425,43 @@ def main():
             print(f"Error finding or processing FIT files: {e}")
             
     except Exception as e:
-        logger.critical(f"Unhandled exception in main: {e}")
+        logger.critical(f"Unhandled exception in process_fit_files_option: {e}")
         print(f"An unexpected error occurred: {e}")
+
+def calculate_karvonen_zones_option():
+    """
+    Handles the option to calculate Karvonen Heart Rate Zones.
+    """
+
+    print("\n--- Karvonen Heart Rate Zone Calculator ---")
+    try:
+        age = prompt_int("Enter your age in years (e.g., 30): ")
+        if age is None:
+            print("Age is required. Aborting Karvonen calculation.")
+            return
+
+        resting_heart_rate = prompt_int("Enter your resting heart rate in BPM (e.g., 60): ")
+        if resting_heart_rate is None:
+            print("Resting heart rate is required. Aborting Karvonen calculation.")
+            return
+
+        max_heart_rate = prompt_int("Enter your measured maximum heart rate in BPM (optional, press Enter to calculate): ")
+        
+        # Default intensity percentages as per common Karvonen zones
+        intensity_percentages = [0.5, 0.6, 0.7, 0.8, 0.9]
+
+        zones = calculate_karvonen_zones(age, resting_heart_rate, intensity_percentages, max_heart_rate)
+
+        print("\n--- Your Karvonen Heart Rate Zones ---")
+        for zone, (lower_hr, upper_hr) in zones.items():
+            print(f"{zone}: {lower_hr} - {upper_hr} BPM")
+        
+    except ValueError as e:
+        logger.error(f"Input error for Karvonen calculation: {e}")
+        print(f"Error: {e}")
+    except Exception as e:
+        logger.critical(f"Unhandled exception in calculate_karvonen_zones_option: {e}", exc_info=True)
+        print(f"An unexpected error occurred during Karvonen calculation: {e}")
 
 if __name__ == '__main__':
     # Set logging level to INFO by default
