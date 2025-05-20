@@ -1,4 +1,14 @@
 import pytest
+from unittest.mock import MagicMock, patch
+
+# Patch logger before importing the modules
+@pytest.fixture(autouse=True)
+def mock_logger():
+    with patch('logger.get_logger') as mock_get_logger:
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        yield mock_logger
+
 from cardio_calculator import (
     calculate_kcal_per_min,
     calculate_heart_rate,

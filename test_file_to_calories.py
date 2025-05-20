@@ -1,6 +1,16 @@
 import pytest
 from unittest.mock import MagicMock, patch, mock_open
 from datetime import datetime, timedelta
+import logging
+
+# Patch logger before importing the modules
+@pytest.fixture(autouse=True)
+def mock_logger():
+    with patch('logger.get_logger') as mock_get_logger:
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        yield mock_logger
+
 from file_to_calories import (
     calories_burned,
     extract_heart_rate_data,

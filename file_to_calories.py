@@ -3,6 +3,11 @@ import os
 import glob
 from fitparse import FitFile
 from datetime import datetime
+import logging
+from logger import get_logger
+
+# Get logger for this module
+logger = get_logger(__name__)
 
 def load_config(config_file='config.json'):
     """
@@ -49,10 +54,9 @@ def extract_heart_rate_data(fitfile):
     Handles both real FitFile and MagicMock/dict-based mocks.
     Adds debug logs for diagnosis.
     """
-    import sys
     heart_rate_data = []
     for record in fitfile.get_messages('record'):
-        print(f"[DEBUG] record: {record}", file=sys.stderr)
+        logger.debug(f"record: {record}")
         timestamp = None
         hr = None
         # Always call __iter__ to get fields; handle mocks with instance-level __iter__
@@ -64,19 +68,19 @@ def extract_heart_rate_data(fitfile):
                 fields = list(iter(record))
             except Exception:
                 fields = [record]
-        print(f"[DEBUG] fields: {fields}", file=sys.stderr)
+        logger.debug(f"fields: {fields}")
         for field in fields:
             name = getattr(field, 'name', None)
             value = getattr(field, 'value', None)
-            print(f"[DEBUG] field: {field}, name: {name}, value: {value}", file=sys.stderr)
+            logger.debug(f"field: {field}, name: {name}, value: {value}")
             if name == 'timestamp':
                 timestamp = value
             elif name == 'heart_rate':
                 hr = value
-        print(f"[DEBUG] extracted timestamp: {timestamp}, hr: {hr}", file=sys.stderr)
+        logger.debug(f"extracted timestamp: {timestamp}, hr: {hr}")
         if hr is not None and timestamp is not None:
             heart_rate_data.append((timestamp, hr))
-    print(f"[DEBUG] heart_rate_data: {heart_rate_data}", file=sys.stderr)
+    logger.debug(f"heart_rate_data: {heart_rate_data}")
     return sorted(heart_rate_data, key=lambda x: x[0])
 
 def integrate_calories_over_intervals(heart_rate_data, weight, age, gender):
@@ -107,6 +111,8 @@ def main():
     age = config.get('age_years', 30)          # Default to 30 years if not specified.
     gender = config.get('gender', 'male')      # Default to 'male' if not specified.
     
+    logger.info(f"Using configuration: weight={weight}kg, age={age}yrs, gender={gender}")
+    
     # Define the directory containing the FIT files: <repo_directory>/fitfiles
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     fit_directory = os.path.join(repo_dir, 'fitfiles')
@@ -115,16 +121,26 @@ def main():
     fit_files = glob.glob(os.path.join(fit_directory, '*.fit'))
     
     if not fit_files:
+        logger.warning(f"No .fit files found in directory: {fit_directory}")
         print("No .fit files found in directory:", fit_directory)
         return
 
+    logger.info(f"Found {len(fit_files)} .fit files to process")
+    
     # Process each file and print its estimated calorie burn.
     for file_path in fit_files:
         try:
+            logger.info(f"Processing file: {os.path.basename(file_path)}")
             total_calories = process_fit_file(file_path, weight, age, gender)
             print(f"File: {os.path.basename(file_path)} - Total calories burned (estimated): {total_calories:.2f} kcal")
+            logger.info(f"Calories burned: {total_calories:.2f} kcal")
         except Exception as e:
-            print(f"Error processing file {file_path}: {e}")
+            error_msg = f"Error processing file {file_path}: {e}"
+            logger.error(error_msg)
+            print(error_msg)
 
 if __name__ == '__main__':
+    # Set logging level to INFO by default
+    # To enable debug logging, uncomment the following line:
+    # logging.getLogger().setLevel(logging.DEBUG)
     main()
