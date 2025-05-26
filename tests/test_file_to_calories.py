@@ -22,7 +22,7 @@ from src.services.fit_processor import (
     InvalidFitFileError,
     FitFileError
 )
-from src.main import ConfigError
+from src.config.config_manager import ConfigError
 
 def test_calories_burned_male_typical():
     kcal = calories_burned(150, 30, 70, 30, gender='male')
