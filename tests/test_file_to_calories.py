@@ -14,15 +14,15 @@ def mock_logger():
 # Import from utils module
 from src.core.utils import calories_burned, load_config
 
-from src.main import (
+from src.services.fit_processor import (
     extract_heart_rate_data,
     integrate_calories_over_intervals,
     process_fit_file,
     MissingDataError,
     InvalidFitFileError,
-    FitFileError,
-    ConfigError
+    FitFileError
 )
+from src.main import ConfigError
 
 def test_calories_burned_male_typical():
     kcal = calories_burned(150, 30, 70, 30, gender='male')
@@ -61,7 +61,7 @@ def test_integrate_calories_over_intervals():
     total = integrate_calories_over_intervals(hr_data, 70, 30, 'male')
     assert total > 0
 
-@patch('src.main.FitFile')
+@patch('src.services.fit_processor.FitFile')
 @patch('os.path.exists')
 @patch('os.path.isfile')
 @patch('os.access')
@@ -191,7 +191,7 @@ def test_process_fit_file_permission_denied(mock_access, mock_isfile, mock_exist
 @patch('os.path.exists')
 @patch('os.path.isfile')
 @patch('os.access')
-@patch('file_to_calories.FitFile')
+@patch('src.services.fit_processor.FitFile')
 def test_process_fit_file_invalid_fit_file(mock_fitfile_cls, mock_access, mock_isfile, mock_exists):
     """Test that process_fit_file raises InvalidFitFileError for invalid FIT file."""
     mock_exists.return_value = True
