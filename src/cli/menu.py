@@ -10,7 +10,8 @@ from src.core.logger import get_logger, initialize_logging
 from .interface import (
     process_fit_files_option,
     calculate_karvonen_zones_option,
-    cleanup_fit_files_option
+    cleanup_fit_files_option,
+    cardio_calculator_option
 )
 
 # Get logger for this module
@@ -31,9 +32,10 @@ def main():
             print("1. Calculate Calories from FIT file")
             print("2. Calculate Karvonen Heart Rate Zones")
             print("3. Clean up FIT file names")
-            print("4. Exit")
+            print("4. Cardio Calculator")
+            print("5. Exit")
 
-            choice = input("Enter your choice (1, 2, 3, or 4): ").strip()
+            choice = input("Enter your choice (1, 2, 3, 4, or 5): ").strip()
 
             if choice == '1':
                 process_fit_files_option()
@@ -42,10 +44,12 @@ def main():
             elif choice == '3':
                 cleanup_fit_files_option()
             elif choice == '4':
+                cardio_calculator_option()
+            elif choice == '5':
                 print("Exiting program.")
                 break
             else:
-                print("Invalid choice. Please enter 1, 2, 3, or 4.")
+                print("Invalid choice. Please enter 1, 2, 3, 4, or 5.")
 
     except KeyboardInterrupt:
         print("\nProgram interrupted by user. Exiting...")

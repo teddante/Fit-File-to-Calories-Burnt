@@ -225,3 +225,94 @@ def calculate_karvonen_zones_option():
     except Exception as e:
         logger.critical(f"Unhandled exception in calculate_karvonen_zones_option: {e}", exc_info=True)
         print(f"An unexpected error occurred during Karvonen calculation: {e}")
+
+
+def cardio_calculator_option():
+    """
+    Handles the option to run the cardio calculator.
+    
+    This function provides an interface to the cardio calculator functionality,
+    allowing users to calculate missing variables (heart rate, weight, age, or kcal per minute)
+    based on the provided inputs.
+    """
+    print("\n--- Cardio Calculator ---")
+    try:
+        # Import the cardio calculator functions
+        from src.cardio.calculator import prompt_float, calculate_with_error_handling
+        from src.validators.input_validator import validate_gender, validate_calculation_inputs
+        from src.exceptions import InputValidationError, CalculationError
+        
+        logger.info("Starting cardio calculator from menu")
+        print("Enter values for the following variables. Leave one blank (press Enter) if unknown.")
+        
+        try:
+            heart_rate = prompt_float("Heart rate: ")
+            weight = prompt_float("Weight (in kg): ")
+            age = prompt_float("Age (in years): ")
+            kcal_per_min = prompt_float("Kcal per minute: ")
+            
+            gender_input = input("Gender (male/female, default: male): ").strip().lower() or "male"
+            try:
+                gender = validate_gender(gender_input)
+            except InputValidationError as e:
+                logger.warning(f"Invalid gender input: {e}")
+                print(f"Warning: {e}. Using default 'male'.")
+                gender = "male"
+            
+            # Create values dictionary
+            values = {
+                "heart_rate": heart_rate,
+                "weight": weight,
+                "age": age,
+                "kcal_per_min": kcal_per_min,
+                "gender": gender,
+            }
+            logger.debug(f"Input values: {values}")
+            
+            # Validate inputs where provided
+            try:
+                validate_calculation_inputs(**{k: v for k, v in values.items() if v is not None})
+            except InputValidationError as e:
+                logger.warning(f"Input validation warning: {e}")
+                print(f"Warning: {e}")
+            
+            # Check for exactly one missing value
+            missing = [k for k, v in values.items() if v is None and k != 'gender']
+            if len(missing) != 1:
+                error_msg = "Error: Exactly one value must be missing."
+                logger.error(error_msg)
+                print(error_msg)
+                return
+            
+            missing_var = missing[0]
+            logger.info(f"Calculating missing variable: {missing_var}")
+            
+            # Calculate the missing variable with error handling
+            try:
+                result_value = calculate_with_error_handling(missing_var, values)
+                
+                # Format and display the result
+                if missing_var == "kcal_per_min":
+                    result = f"Calculated kcal per minute: {result_value:.4f}"
+                elif missing_var == "heart_rate":
+                    result = f"Calculated heart rate: {result_value:.4f}"
+                elif missing_var == "weight":
+                    result = f"Calculated weight (kg): {result_value:.4f}"
+                elif missing_var == "age":
+                    result = f"Calculated age (years): {result_value:.4f}"
+                
+                logger.info(result)
+                print(result)
+                
+            except (InputValidationError, CalculationError) as e:
+                logger.error(f"Calculation failed: {e}")
+                print(f"Error: {e}")
+                
+        except KeyboardInterrupt:
+            print("\nInput interrupted. Returning to main menu.")
+            logger.info("Input interrupted by user")
+            return
+            
+    except Exception as e:
+        logger.critical(f"Unhandled exception in cardio_calculator_option: {e}", exc_info=True)
+        print(f"An unexpected error occurred: {e}")
