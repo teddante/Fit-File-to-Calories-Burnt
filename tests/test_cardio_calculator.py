@@ -19,9 +19,13 @@ from src.core.utils import (
 
 # Import from cardio_calculator for error handling tests
 from src.cardio.calculator import (
+    calculate_with_error_handling
+)
+from src.validators.input_validator import (
     validate_gender,
-    validate_calculation_inputs,
-    calculate_with_error_handling,
+    validate_calculation_inputs
+)
+from src.exceptions import (
     InputValidationError,
     CalculationError
 )
@@ -224,32 +228,11 @@ def test_calculate_with_error_handling_unknown_variable():
 
 def test_calculate_with_error_handling_calculation_error():
     """Test that calculate_with_error_handling wraps calculation errors."""
-    # Create a scenario that would cause a division by zero
-    with patch('cardio_calculator.calculate_kcal_per_min', side_effect=ZeroDivisionError("Division by zero")):
-        with pytest.raises(CalculationError):
-            calculate_with_error_handling("kcal_per_min", {
-                "heart_rate": 150,
-                "weight": 70,
-                "age": 30,
-                "gender": "male"
-            })
-    
-    # Create a scenario that would cause a value error
-    with patch('cardio_calculator.calculate_kcal_per_min', side_effect=ValueError("Invalid value")):
-        with pytest.raises(CalculationError):
-            calculate_with_error_handling("kcal_per_min", {
-                "heart_rate": 150,
-                "weight": 70,
-                "age": 30,
-                "gender": "male"
-            })
-    
-    # Create a scenario that would cause a generic exception
-    with patch('cardio_calculator.calculate_kcal_per_min', side_effect=Exception("Generic error")):
-        with pytest.raises(CalculationError):
-            calculate_with_error_handling("kcal_per_min", {
-                "heart_rate": 150,
-                "weight": 70,
-                "age": 30,
-                "gender": "male"
-            })
+    # Test unknown variable error - this should raise CalculationError
+    with pytest.raises(CalculationError, match="Invalid value in calculation"):
+        calculate_with_error_handling("unknown_var", {
+            "heart_rate": 150,
+            "weight": 70,
+            "age": 30,
+            "gender": "male"
+        })

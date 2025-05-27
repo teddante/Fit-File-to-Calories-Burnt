@@ -7,22 +7,14 @@ from src.core.utils import (
     calculate_weight,
     calculate_age
 )
+from src.validators.input_validator import (
+    validate_gender,
+    validate_calculation_inputs
+)
+from src.exceptions import CardioCalculatorError, CalculationError, InputValidationError
 
 # Get logger for this module
 logger = get_logger(__name__)
-
-# Custom exceptions for specific error scenarios
-class CardioCalculatorError(Exception):
-    """Base exception for cardio calculator errors."""
-    pass
-
-class InputValidationError(CardioCalculatorError):
-    """Exception raised when input validation fails."""
-    pass
-
-class CalculationError(CardioCalculatorError):
-    """Exception raised when a calculation fails."""
-    pass
 
 def prompt_float(prompt: str) -> Optional[float]:
     """
@@ -50,84 +42,6 @@ def prompt_float(prompt: str) -> Optional[float]:
             logger.info("Input interrupted by user")
             raise
 
-def validate_gender(gender: str) -> str:
-    """
-    Validate and normalize the gender input.
-    
-    Args:
-        gender: The gender string to validate ('male' or 'female')
-        
-    Returns:
-        Normalized gender string ('male' or 'female')
-        
-    Raises:
-        InputValidationError: If the gender is not 'male' or 'female'
-    """
-    normalized = gender.strip().lower()
-    if normalized not in ['male', 'female']:
-        raise InputValidationError(f"Gender must be 'male' or 'female', got '{gender}'")
-    return normalized
-
-def validate_calculation_inputs(heart_rate: Optional[float] = None,
-                               weight: Optional[float] = None,
-                               age: Optional[float] = None,
-                               kcal_per_min: Optional[float] = None,
-                               gender: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Validate calculation inputs for physiological reasonableness.
-    
-    Args:
-        heart_rate: Heart rate in beats per minute
-        weight: Weight in kg
-        age: Age in years
-        kcal_per_min: Kilocalories burned per minute
-        gender: 'male' or 'female'
-        
-    Returns:
-        Dictionary of validated inputs
-        
-    Raises:
-        InputValidationError: If any input is outside reasonable physiological ranges
-    """
-    validated = {}
-    
-    # Validate heart rate if provided
-    if heart_rate is not None:
-        if heart_rate <= 0:
-            raise InputValidationError(f"Heart rate must be positive, got {heart_rate}")
-        if heart_rate > 250:  # Physiological maximum
-            raise InputValidationError(f"Heart rate {heart_rate} exceeds physiological maximum (250 bpm)")
-        validated['heart_rate'] = heart_rate
-    
-    # Validate weight if provided
-    if weight is not None:
-        if weight <= 0:
-            raise InputValidationError(f"Weight must be positive, got {weight}")
-        if weight > 500:  # Reasonable maximum in kg
-            raise InputValidationError(f"Weight {weight} kg exceeds reasonable maximum")
-        validated['weight'] = weight
-    
-    # Validate age if provided
-    if age is not None:
-        if age <= 0:
-            raise InputValidationError(f"Age must be positive, got {age}")
-        if age > 130:  # Reasonable maximum age
-            raise InputValidationError(f"Age {age} exceeds reasonable maximum")
-        validated['age'] = age
-    
-    # Validate kcal_per_min if provided
-    if kcal_per_min is not None:
-        if kcal_per_min < 0:
-            raise InputValidationError(f"Kcal per minute cannot be negative, got {kcal_per_min}")
-        if kcal_per_min > 100:  # Reasonable maximum
-            raise InputValidationError(f"Kcal per minute {kcal_per_min} exceeds reasonable maximum")
-        validated['kcal_per_min'] = kcal_per_min
-    
-    # Validate gender if provided
-    if gender is not None:
-        validated['gender'] = validate_gender(gender)
-    
-    return validated
 
 def calculate_with_error_handling(missing_var: str, values: Dict[str, Any]) -> float:
     """

@@ -11,9 +11,10 @@ import logging
 from typing import Optional
 from src.core.logger import get_logger
 from src.core.utils import calculate_karvonen_zones
-from src.services.fit_processor import process_fit_file, FitFileError, InvalidFitFileError, MissingDataError
+from src.services.fit_processor import process_fit_file
 from src.services.file_manager import extract_fit_file_metadata, rename_fit_file
-from src.config.config_manager import load_user_config, ConfigError
+from src.config.config_manager import load_user_config
+from src.exceptions import FitFileError, InvalidFitFileError, MissingDataError, ConfigError
 
 # Get logger for this module
 logger = get_logger(__name__)
@@ -99,34 +100,19 @@ def process_fit_files_option():
             error_count = 0
             
             for file_path in fit_files:
-                try:
-                    logger.info(f"Processing file: {os.path.basename(file_path)}")
-                    total_calories = process_fit_file(file_path, weight, age, gender)
+                logger.info(f"Processing file: {os.path.basename(file_path)}")
+                result = process_fit_file(file_path, weight, age, gender)
+                
+                if result.success:
+                    total_calories = result.calorie_data.total_calories
+                    avg_hr = result.calorie_data.average_heart_rate
+                    duration = result.calorie_data.duration_minutes
                     print(f"File: {os.path.basename(file_path)} - Total calories burned (estimated): {total_calories:.2f} kcal")
-                    logger.info(f"Calories burned: {total_calories:.2f} kcal")
+                    print(f"  Duration: {duration:.1f} min, Avg HR: {avg_hr:.0f} bpm, Intervals: {result.calorie_data.intervals_processed}")
+                    logger.info(f"Calories burned: {total_calories:.2f} kcal, Duration: {duration:.1f} min")
                     processed_count += 1
-                except FileNotFoundError as e:
-                    error_msg = f"File not found: {os.path.basename(file_path)}"
-                    logger.error(error_msg)
-                    print(error_msg)
-                    error_count += 1
-                except PermissionError as e:
-                    error_msg = f"Permission denied: {os.path.basename(file_path)}"
-                    logger.error(error_msg)
-                    print(error_msg)
-                    error_count += 1
-                except InvalidFitFileError as e:
-                    error_msg = f"Invalid FIT file {os.path.basename(file_path)}: {e}"
-                    logger.error(error_msg)
-                    print(error_msg)
-                    error_count += 1
-                except MissingDataError as e:
-                    error_msg = f"Missing data in {os.path.basename(file_path)}: {e}"
-                    logger.error(error_msg)
-                    print(error_msg)
-                    error_count += 1
-                except Exception as e:
-                    error_msg = f"Error processing file {os.path.basename(file_path)}: {e}"
+                else:
+                    error_msg = f"Error processing {os.path.basename(file_path)}: {result.error_message}"
                     logger.error(error_msg)
                     print(error_msg)
                     error_count += 1

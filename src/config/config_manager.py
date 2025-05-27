@@ -10,6 +10,7 @@ import json
 from typing import Dict, Any
 from src.core.logger import get_logger
 from src.core.utils import load_config
+from src.exceptions import ConfigError
 
 # Get logger for this module
 logger = get_logger(__name__)
@@ -18,11 +19,6 @@ logger = get_logger(__name__)
 # This assumes the script is run from within the project structure
 # src/config/config_manager.py -> src/ -> project_root/
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-
-
-class ConfigError(Exception):
-    """Exception raised for configuration-related errors."""
-    pass
 
 
 def load_user_config() -> Dict[str, Any]:

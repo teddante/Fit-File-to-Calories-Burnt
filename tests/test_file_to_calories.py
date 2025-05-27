@@ -17,12 +17,14 @@ from src.core.utils import calories_burned, load_config
 from src.services.fit_processor import (
     extract_heart_rate_data,
     integrate_calories_over_intervals,
-    process_fit_file,
+    process_fit_file
+)
+from src.exceptions import (
     MissingDataError,
     InvalidFitFileError,
-    FitFileError
+    FitFileError,
+    ConfigError
 )
-from src.config.config_manager import ConfigError
 
 def test_calories_burned_male_typical():
     kcal = calories_burned(150, 30, 70, 30, gender='male')
@@ -58,18 +60,22 @@ def test_integrate_calories_over_intervals():
     t1 = t0 + timedelta(minutes=1)
     t2 = t1 + timedelta(minutes=1)
     hr_data = [(t0, 100), (t1, 110), (t2, 120)]
-    total = integrate_calories_over_intervals(hr_data, 70, 30, 'male')
-    assert total > 0
+    result = integrate_calories_over_intervals(hr_data, 70, 30, 'male')
+    assert result.total_calories > 0
+    assert result.duration_minutes > 0
+    assert result.average_heart_rate > 0
 
 @patch('src.services.fit_processor.FitFile')
+@patch('os.path.getsize')
 @patch('os.path.exists')
 @patch('os.path.isfile')
 @patch('os.access')
-def test_process_fit_file(mock_access, mock_isfile, mock_exists, mock_fitfile_cls):
+def test_process_fit_file(mock_access, mock_isfile, mock_exists, mock_getsize, mock_fitfile_cls):
     # Setup file existence mocks
     mock_exists.return_value = True
     mock_isfile.return_value = True
     mock_access.return_value = True
+    mock_getsize.return_value = 1024
     
     mock_fitfile = MagicMock()
     t0 = datetime(2024,1,1,12,0,0)
@@ -86,8 +92,12 @@ def test_process_fit_file(mock_access, mock_isfile, mock_exists, mock_fitfile_cl
         ])),
     ]
     mock_fitfile_cls.return_value = mock_fitfile
-    total = process_fit_file('fake.fit', 70, 30, 'male')
-    assert total > 0
+    
+    result = process_fit_file('fake.fit', 70, 30, 'male')
+    assert result.success is True
+    assert result.calorie_data.total_calories > 0
+    assert result.calorie_data.duration_minutes > 0
+    assert result.calorie_data.average_heart_rate > 0
 
 def test_load_config_reads_json():
     mock_json = '{"weight_kg": 80, "age_years": 40, "gender": "female"}'
@@ -137,7 +147,7 @@ def test_integrate_calories_invalid_weight():
     t1 = t0 + timedelta(minutes=1)
     hr_data = [(t0, 100), (t1, 110)]
     
-    with pytest.raises(ValueError, match="Weight must be a positive number"):
+    with pytest.raises(ValueError, match="Input validation failed: Weight must be positive"):
         integrate_calories_over_intervals(hr_data, -10, 30, 'male')
 
 def test_integrate_calories_invalid_age():
@@ -146,7 +156,7 @@ def test_integrate_calories_invalid_age():
     t1 = t0 + timedelta(minutes=1)
     hr_data = [(t0, 100), (t1, 110)]
     
-    with pytest.raises(ValueError, match="Age must be a positive number"):
+    with pytest.raises(ValueError, match="Input validation failed: Age must be positive"):
         integrate_calories_over_intervals(hr_data, 70, -5, 'male')
 
 def test_integrate_calories_invalid_gender():
@@ -160,44 +170,48 @@ def test_integrate_calories_invalid_gender():
 
 @patch('os.path.exists')
 def test_process_fit_file_nonexistent(mock_exists):
-    """Test that process_fit_file raises FileNotFoundError for nonexistent file."""
+    """Test that process_fit_file returns error result for nonexistent file."""
     mock_exists.return_value = False
     
-    with pytest.raises(FileNotFoundError, match="File not found"):
-        process_fit_file('nonexistent.fit', 70, 30, 'male')
+    result = process_fit_file('nonexistent.fit', 70, 30, 'male')
+    assert result.success is False
+    assert "File not found" in result.error_message
 
 @patch('os.path.exists')
 @patch('os.path.isfile')
 def test_process_fit_file_not_a_file(mock_isfile, mock_exists):
-    """Test that process_fit_file raises ValueError if path is not a file."""
+    """Test that process_fit_file returns error result if path is not a file."""
     mock_exists.return_value = True
     mock_isfile.return_value = False
     
-    with pytest.raises(ValueError, match="Not a file"):
-        process_fit_file('directory.fit', 70, 30, 'male')
+    result = process_fit_file('directory.fit', 70, 30, 'male')
+    assert result.success is False
+    assert "Not a file" in result.error_message
 
 @patch('os.path.exists')
 @patch('os.path.isfile')
 @patch('os.access')
 def test_process_fit_file_permission_denied(mock_access, mock_isfile, mock_exists):
-    """Test that process_fit_file raises PermissionError for inaccessible file."""
+    """Test that process_fit_file returns error result for inaccessible file."""
     mock_exists.return_value = True
     mock_isfile.return_value = True
     mock_access.return_value = False
     
-    with pytest.raises(PermissionError, match="Permission denied"):
-        process_fit_file('noaccess.fit', 70, 30, 'male')
+    result = process_fit_file('noaccess.fit', 70, 30, 'male')
+    assert result.success is False
+    assert "Permission denied" in result.error_message
 
 @patch('os.path.exists')
 @patch('os.path.isfile')
 @patch('os.access')
 @patch('src.services.fit_processor.FitFile')
 def test_process_fit_file_invalid_fit_file(mock_fitfile_cls, mock_access, mock_isfile, mock_exists):
-    """Test that process_fit_file raises InvalidFitFileError for invalid FIT file."""
+    """Test that process_fit_file returns error result for invalid FIT file."""
     mock_exists.return_value = True
     mock_isfile.return_value = True
     mock_access.return_value = True
     mock_fitfile_cls.side_effect = Exception("Invalid FIT file format")
     
-    with pytest.raises(InvalidFitFileError, match="Error opening FIT file"):
-        process_fit_file('invalid.fit', 70, 30, 'male')
+    result = process_fit_file('invalid.fit', 70, 30, 'male')
+    assert result.success is False
+    assert "Error opening FIT file" in result.error_message
