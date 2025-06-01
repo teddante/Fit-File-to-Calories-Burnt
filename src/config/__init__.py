@@ -5,9 +5,11 @@ This package contains configuration management functionality including
 loading and validating user configuration settings.
 """
 
-from .config_manager import load_user_config, ConfigError
+from .config_manager import load_user_config, ConfigError, get_current_config, display_config
 
 __all__ = [
     'load_user_config',
-    'ConfigError'
+    'ConfigError',
+    'get_current_config',
+    'display_config'
 ]

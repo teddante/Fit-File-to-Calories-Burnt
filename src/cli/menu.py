@@ -7,6 +7,7 @@ user interface for selecting different calculator options.
 
 import logging
 from src.core.logger import get_logger, initialize_logging
+from src.config import get_current_config, display_config
 from .interface import (
     process_fit_files_option,
     calculate_karvonen_zones_option,
@@ -73,6 +74,9 @@ def run_application():
     # logging.getLogger().setLevel(logging.DEBUG)
     
     try:
+        # Display current configuration at startup
+        config = get_current_config()
+        display_config(config)
         main()
     except KeyboardInterrupt:
         print("\nProgram interrupted by user. Exiting...")

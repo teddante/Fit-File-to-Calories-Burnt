@@ -76,3 +76,30 @@ def load_user_config() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error validating configuration: {e}")
         raise ConfigError(f"Error validating configuration: {e}") from e
+
+def get_current_config() -> Dict[str, Any]:
+    """
+    Retrieves the current validated user configuration.
+
+    This function acts as a wrapper around load_user_config, providing a
+    convenient way to access the application's configuration.
+
+    Returns:
+        Dictionary with validated configuration values.
+
+    Raises:
+        ConfigError: If the configuration cannot be loaded or is invalid.
+    """
+    return load_user_config()
+
+def display_config(config: Dict[str, Any]) -> None:
+    """
+    Prints the current configuration to the console in a user-friendly format.
+
+    Args:
+        config: A dictionary containing the configuration values.
+    """
+    print("\n--- Current Configuration ---")
+    for key, value in config.items():
+        print(f"{key.replace('_', ' ').title()}: {value}")
+    print("---------------------------\n")
