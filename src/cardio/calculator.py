@@ -100,88 +100,88 @@ def calculate_with_error_handling(missing_var: str, values: Dict[str, Any]) -> f
         logger.error(f"Unexpected error in calculation: {e}")
         raise CalculationError(f"Calculation error: {e}") from e
 
-def main():
+def run_interactive_calculator():
     """
-    Main function for the cardio calculator.
-    
+    Runs the interactive cardio calculator.
+
     Prompts the user for input values, validates them, and calculates the missing variable.
     Handles errors gracefully and provides informative error messages.
     """
+    logger.info("Starting interactive cardio calculator")
+    print("Enter values for the following variables. Leave one blank (press Enter) if unknown.")
+
+    heart_rate = prompt_float("Heart rate: ")
+    weight = prompt_float("Weight (in kg): ")
+    age = prompt_float("Age (in years): ")
+    kcal_per_min = prompt_float("Kcal per minute: ")
+
+    gender_input = input("Gender (male/female, default: male): ").strip().lower() or "male"
     try:
-        logger.info("Starting cardio calculator")
-        print("Enter values for the following variables. Leave one blank (press Enter) if unknown.")
-        
-        try:
-            heart_rate = prompt_float("Heart rate: ")
-            weight = prompt_float("Weight (in kg): ")
-            age = prompt_float("Age (in years): ")
-            kcal_per_min = prompt_float("Kcal per minute: ")
-            
-            gender_input = input("Gender (male/female, default: male): ").strip().lower() or "male"
-            try:
-                gender = validate_gender(gender_input)
-            except InputValidationError as e:
-                logger.warning(f"Invalid gender input: {e}")
-                print(f"Warning: {e}. Using default 'male'.")
-                gender = "male"
-            
-            # Create values dictionary
-            values = {
-                "heart_rate": heart_rate,
-                "weight": weight,
-                "age": age,
-                "kcal_per_min": kcal_per_min,
-                "gender": gender,
-            }
-            logger.debug(f"Input values: {values}")
-            
-            # Validate inputs where provided
-            try:
-                validate_calculation_inputs(**{k: v for k, v in values.items() if v is not None})
-            except InputValidationError as e:
-                logger.warning(f"Input validation warning: {e}")
-                print(f"Warning: {e}")
-            
-            # Check for exactly one missing value
-            missing = [k for k, v in values.items() if v is None and k != 'gender']
-            if len(missing) != 1:
-                error_msg = "Error: Exactly one value must be missing."
-                logger.error(error_msg)
-                print(error_msg)
-                return
-            
-            missing_var = missing[0]
-            logger.info(f"Calculating missing variable: {missing_var}")
-            
-            # Calculate the missing variable with error handling
-            try:
-                result_value = calculate_with_error_handling(missing_var, values)
-                
-                # Format and display the result
-                if missing_var == "kcal_per_min":
-                    result = f"Calculated kcal per minute: {result_value:.4f}"
-                elif missing_var == "heart_rate":
-                    result = f"Calculated heart rate: {result_value:.4f}"
-                elif missing_var == "weight":
-                    result = f"Calculated weight (kg): {result_value:.4f}"
-                elif missing_var == "age":
-                    result = f"Calculated age (years): {result_value:.4f}"
-                
-                logger.info(result)
-                print(result)
-                
-            except (InputValidationError, CalculationError) as e:
-                logger.error(f"Calculation failed: {e}")
-                print(f"Error: {e}")
-                
-        except KeyboardInterrupt:
-            print("\nInput interrupted. Exiting.")
-            logger.info("Input interrupted by user")
-            return
-            
-    except Exception as e:
-        logger.critical(f"Unhandled exception in main: {e}", exc_info=True)
-        print(f"An unexpected error occurred: {e}")
+        gender = validate_gender(gender_input)
+    except InputValidationError as e:
+        logger.warning(f"Invalid gender input: {e}")
+        print(f"Warning: {e}. Using default 'male'.")
+        gender = "male"
+
+    # Create values dictionary
+    values = {
+        "heart_rate": heart_rate,
+        "weight": weight,
+        "age": age,
+        "kcal_per_min": kcal_per_min,
+        "gender": gender,
+    }
+    logger.debug(f"Input values: {values}")
+
+    # Validate inputs where provided
+    try:
+        validate_calculation_inputs(**{k: v for k, v in values.items() if v is not None})
+    except InputValidationError as e:
+        logger.warning(f"Input validation warning: {e}")
+        print(f"Warning: {e}")
+
+    # Check for exactly one missing value
+    missing = [k for k, v in values.items() if v is None and k != 'gender']
+    if len(missing) != 1:
+        error_msg = "Error: Exactly one value must be missing."
+        logger.error(error_msg)
+        print(error_msg)
+        return
+
+    missing_var = missing[0]
+    logger.info(f"Calculating missing variable: {missing_var}")
+
+    # Calculate the missing variable with error handling
+    try:
+        result_value = calculate_with_error_handling(missing_var, values)
+
+        # Format and display the result
+        if missing_var == "kcal_per_min":
+            result = f"Calculated kcal per minute: {result_value:.4f}"
+        elif missing_var == "heart_rate":
+            result = f"Calculated heart rate: {result_value:.4f}"
+        elif missing_var == "weight":
+            result = f"Calculated weight (kg): {result_value:.4f}"
+        elif missing_var == "age":
+            result = f"Calculated age (years): {result_value:.4f}"
+
+        logger.info(result)
+        print(result)
+
+    except (InputValidationError, CalculationError) as e:
+        logger.error(f"Calculation failed: {e}")
+        print(f"Error: {e}")
+
+def main():
+    """
+    Main function for the cardio calculator.
+    """
+    try:
+        run_interactive_calculator()
+    except KeyboardInterrupt:
+        print("\nInput interrupted. Exiting.")
+        logger.info("Input interrupted by user")
+        raise # Re-raise to be caught by the __main__ block
 
 if __name__ == "__main__":
     # Set logging level to INFO by default
