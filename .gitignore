@@ -171,7 +171,7 @@ cython_debug/
 .pypirc
 
 # Ignore all files in the fitfiles directory...
-/fitfiles/*
+data/fitfiles/*
 
 # ...except for the .gitignore file within fitfiles (to keep the folder tracked)
-!fitfiles/.gitignore
+!data/fitfiles/.gitignore
